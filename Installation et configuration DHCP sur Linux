@@ -1,0 +1,159 @@
+Matthieu NAVIS
+
+
+Documentation Technique DHCP sur Linux
+
+
+	Dans cette documentation technique, vous allez voir à quoi sert le DHCP/DNS et comment l’installer sur Windows Server et Linux.
+
+Qu’est-ce qu’un DHCP ?
+	Le Dynamic Host Configuration Protocol (DHCP) est un protocole de communication ou protocole réseau parfaitement indispensable. Il garantie la configuration automatique des paramètres IP d’une machine ou d’une station. 
+
+Pourquoi mettre en place un DHCP ?
+Chaque appareil sur un réseau TCP/IP doit avoir une adresse IP monodiffusion unique pour accéder au réseau et à ses ressources. Sans le DHCP, les adresses IP des nouveaux ordinateurs ou des ordinateurs qui sont déplacés d’un sous-réseau vers un autre doit être configurées manuellement.
+
+Les avantages du DHCP :
+	DHCP offre de nombreux avantages qui sont les suivants :
+•	Configuration d’adresse IP fiable. Il minimise les erreurs de configuration manuelle des adresse IP, telles que les erreurs typographiques, ou les conflits d’adresses causés par l’attribution d’un adresse IP à plusieurs ordinateurs en même temps.
+•	Administrer réseau réduite :
+o	Configuration TCP/IP centralisée et automatisée.
+o	La possibilité de définir des configurations TCP/IP à partir d’un emplacement central
+o	La possibilité d’attribuer une plage complète de valeurs de configuration TCP/IP supplémentaires à l’aide des options DHCP.
+o	Traitement efficace des modifications d’adresse IP pour les clients qui doivent être mis à jour fréquemment.
+o	Transfert des messages DHCP initiaux à l’aide d’un agent de relais DHCP, qui élimine la nécessité d’un serveur DHCP sur chaque sous-réseau.
+
+Prérequis :
+•	Une machine virtuelle (Debian) avec une IP fixe.
+•	Serveur DHCP actif afin d’éviter les conflits
+•	Machine cliente sans configuration IP afin de tester
+•	Connexion Internet
+
+
+
+
+On va mettre à jour la liste des paquets de dépots (ceux de la liste sources.list) et les paquets installé sur votre système.
+
+  # apt update && apt upgrade
+
+ 
+Le paquet isc-dhcp-server permet de mettre en place un serveur DHCP.
+
+	# apt install isc-dhcp-server
+
+ 
+ On va vérifier les informations succinctes sur l’état d’exécution d’une ou plusieurs unités, suivies des données les plus récentes du journal.
+
+	# systemctl status isc-dhcp-server.service
+
+On peut apercevoir que le serveur n’est pas active et qu’il doit être configuré.
+ 
+
+On va ajouter une adresse IP à notre serveur via nano qui permet d’éditer de façon légé et facile une adresse IP. Il faut qu’on ajoute une adresse IP au serveur afin qu’il fonctionneme correctement et qu’il ne soit pas perdu.
+
+	# nano /etc/network/interfaces
+
+ 
+
+On ajoute une carte réseau en adresse static.
+
+  Adresse IP : 10.0.1.10/24
+  Adresse MAC : 255.255.255.0
+  Network: 10.0.1.0
+  Broadcast: 10.0.1.255
+  Dns-domain: btssio.corp
+
+ 
+Après cela, on éteint la machine et on crée puis ajoute un réseau NAT
+
+Menu VirtualBox > Fichier > Réseaux
+
+  Nom du réseau : DHCP TEST
+  CIDR du réseau : 10.0.50.0/24
+ 
+
+Ajouter la nouvelle carte réseau à notre machine debian
+
+Configuration > réseau
+
+ 
+
+On redémarre le machine virtuelle et la carte réseau de la machine
+
+	# systemctl restart networking.service
+
+On configure le fichier du serveur DHCP
+ 
+
+On décoche le DHCPv4_CONF=/etc/dhcp/dhcpd.conf
+
+On ajoute le nom de la carte réseau
+	
+	INTERFACESv4= « enp0s3 »
+ 
+
+On config le fichier dhcpd.conf
+
+ 
+
+On va paramétrer un réseau
+	Première ligne, c’est un commentaire qui désigne quel réseau on paramètre.
+	Deuxième ligne, c’est l’adresse IP et l’adresse MAC du réseau
+	Troisième ligne, indique le rang d’adresse IP fournit
+	Quatrième ligne, on indique le DNS.
+	Cinquième ligne, on indique le nom de notre domaine
+	Sixième ligne, on indique l’adresse de notre passerelle
+	Septième ligne, on indique l’adresse broadcast du réseau
+	Les deux dernières lignes, sont pour le bail. On indique le bail par défaut et le bail maximum. Ce bail est exprimé en secondes.
+ 
+On enregistre « Crtl + X »
+
+On relance le serveur DHCP, « systemctl restart isc-dhcp-server »
+ 
+
+Puis un on vérifie son status « systemctl status isc-dhcp-server »
+ 
+
+Maintenant qu’on a installer et configurer le serveur DHCP, on le tester afin de voir si la configuration est bonne.
+
+Donc nous allons créer une machine cliente Linux (Debian) et l’ajouter au même réseau que le serveur.
+
+(Lien pour créer une machine virtuelle)
+
+Une fois la machine crée, on ajoute la machine dans le même réseau.
+
+		Paramètre > réseau > réseau NAT > choisir le réseau crée
+
+ 
+
+On met à jours les paquets de la machine cliente
+	
+	# apt update && apt upgrade
+
+On vérifie que l’interface réseau de la machine cliente n’est pas configuré et le mettre en « dhcp ».
+
+	#nano /etc/network/interfaces
+
+ 
+
+On fait un IP a, pour vérifier si la machine à une adresse IP.
+
+	#ip a
+
+ 
+
+Pour que la machine cliente prends une IP, il faut démarrer la machine DHCP.
+
+Une fois cela effectué, on éteint la carte réseau « ifdown (nom de la carte réseau) » puis on l’allume « ifup (nom de la carte réseau) ».
+
+	#ifdown enp0s3
+
+ 
+	#ifup enp0s3
+
+ 
+
+Pour vérifier, on fait un « ip a »
+
+ 
+
+Voilà, notre DHCP fonctionne et le machine cliente a bien reçu une adresse IP.
